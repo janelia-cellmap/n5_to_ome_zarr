@@ -4,7 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["Yurii Zubov <zubov452@gmail.com>"]
 readme = "README.md"
-packages = [{include = "n5_to_zarr"}]
+packages = [{include = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
