@@ -5,6 +5,7 @@ import shutil
 import json
 import dask.array as da
 from pathlib import Path
+import click
 
 __version__ = "0.1.0"
 
@@ -44,17 +45,19 @@ def ome_dataset_metadata(n5_src, n5arr):
     
     return dataset_meta
 
-
-def import_datasets(n5_src, zarr_dest):
-    store_n5 = zarr.N5Store(n5_src)
+@click.command()
+@click.option('--n5src', help='Source path to the .n5 file and its name. Example: "../folder1/folder2/file.n5"')
+@click.option('--zarrdest', help='Destination path to the .zarr file and its name. Example: "../folder1/folder2/file.zarr"')
+def import_datasets(n5src, zarrdest):
+    store_n5 = zarr.N5Store(n5src)
     n5_root = zarr.open_group(store_n5, mode = 'r')
     zarr_arrays = sorted(n5_root.arrays(recurse=True))
 
-    z_store = zarr.NestedDirectoryStore(zarr_dest)
+    z_store = zarr.NestedDirectoryStore(zarrdest)
     zg = zarr.open_group(z_store, mode='a')
 
     #provide n5 metadata according to the ome-ngff multiscale specifications
-    z_attrs = populate_zattrs(n5_src, n5_root)
+    z_attrs = populate_zattrs(n5src, n5_root)
     
 
     for item in zarr_arrays:
@@ -69,13 +72,15 @@ def import_datasets(n5_src, zarr_dest):
                                 dtype=n5arr.dtype
                                 )
         else: 
-            dataset = zarr.open_array(os.path.join(zarr_dest, n5arr.path), mode='a')
+            dataset = zarr.open_array(os.path.join(zarrdest, n5arr.path), mode='a')
         
         da.store(darray, dataset, lock = False)
         #add dataset metadata to zarr attributes
-        z_attrs['multiscales'][0]['datasets'].append(ome_dataset_metadata(n5_src, n5arr))
+        z_attrs['multiscales'][0]['datasets'].append(ome_dataset_metadata(n5src, n5arr))
 
     
     # add metadata to .zattrs 
     zg.attrs['multiscales'] = z_attrs['multiscales']
 
+if __name__ == '__main__':
+    import_datasets()
