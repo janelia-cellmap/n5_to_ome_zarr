@@ -12,19 +12,82 @@ import n5_to_zarr as n5toz
 def test_version():
     assert n5toz.__version__ == "0.1.0"
 
-@pytest.fixture
-def filepaths():
-    p = os.path.join('..', 'test_data')
-    os.makedirs(p, exist_ok = True)
-    input = os.path.join(p, 'input', 'test_file.n5')
-    output = os.path.join(p, 'output', 'test_file_new.zarr')
+@pytest.fixture(scope='session')
+def filepaths(tmp_path_factory):
+    path = tmp_path_factory.mktemp('test_data', numbered=False)
+    input = path / 'input/test_file.n5'
+    output = path / 'output/test_file_new.zarr'
+    populate_n5file(input)
+    print(input)
+    print(output)
 
-    os.makedirs(input, exist_ok = True )
-    os.makedirs(output, exist_ok = True)
     return (input, output)
 
+#test file
+def populate_n5file(input):
+    store = zarr.N5Store(input)
+    print(input)
+    root = zarr.group(store = store, overwrite = True) 
+    paths = ['data', 'data1/data1_lvl1/data1_lvl2']
+    
+    n5_data = zarr.create(store=store, 
+                            path=paths[0], 
+                            shape = (100,100, 100),
+                            chunks=10,
+                            dtype='float32')
+    
+    n5_data1 = zarr.create(store=store, 
+                            path=paths[1], 
+                            shape = (100,100, 100),
+                            chunks=10,
+                            dtype='float32')
+
+    n5_data[:] = 42 * np.random.rand(100,100, 100)
+    n5_data1[:] = 42 * np.random.rand(100,100, 100)
+    datasets = [n5_data, n5_data1]
+
+    test_metadata_n5 = {"pixelResolution":{"dimensions":[4.0,4.0,4.0],
+                        "unit":"nm"},
+                        "ordering":"C",
+                        "scales":[[1,1,1],[2,2,2],[4,4,4],[8,8,8],[16,16,16],
+                                  [32,32,32],[64,64,64],[128,128,128],[256,256,256],
+                                  [512,512,512],[1024,1024,1024]],
+                        "axes":["z","y","x"],
+                        "units":["nm","nm","nm"],
+                        "translate":[-2519,-2510,1]}
+    root.attrs.update(test_metadata_n5)
+
+    res_params = [(13.0, 0.0), (15.0, 2.0)]
+    
+   
+    for (data, res_param) in zip(datasets, res_params):
+            transform = {
+            "axes": [
+                "z",
+                "y",
+                "x"
+            ],
+            "ordering": "C",
+            "scale": [
+                res_param[0],
+                res_param[0],
+                res_param[0]
+            ],
+            "translate": [
+                res_param[1],
+                res_param[1],
+                res_param[1]
+            ],
+            "units": [
+                "nm",
+                "nm",
+                "nm"
+            ]}
+            data.attrs['transform'] = transform
+    
 @pytest.fixture
 def n5_data(filepaths):
+    populate_n5file(filepaths[0])
     store_n5 = zarr.N5Store(filepaths[0])
     n5_root = zarr.open_group(store_n5, mode = 'r')
     zarr_arrays = sorted(n5_root.arrays(recurse=True))

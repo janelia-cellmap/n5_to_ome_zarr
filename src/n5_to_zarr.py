@@ -8,23 +8,6 @@ from pathlib import Path
 
 __version__ = "0.1.0"
 
-
-def filepaths():
-    p = os.path.join('..', 'test_data')
-    os.makedirs(p, exist_ok = True)
-    input = os.path.join(p, 'input', 'test_file.n5')
-    output = os.path.join(p, 'output', 'test_file_new.zarr')
-
-    os.makedirs(input, exist_ok = True )
-    os.makedirs(output, exist_ok = True)
-    return input, output
-
-n5_src, zarr_dest = filepaths()
-
-#if os.path.exists(zarr_dest):
-#    shutil.rmtree(zarr_dest)
-
-
 def populate_zattrs(n5_path, n5_root):
     
     f_zattrs_template = open('src/zarr_attrs_template.json')
@@ -37,17 +20,21 @@ def populate_zattrs(n5_path, n5_root):
                                            "unit": unit} for (axis, unit) in zip(n5_root.attrs['axes'], 
                                                                                  n5_root.attrs['units'])]
     z_attrs['multiscales'][0]['version'] = '1.0'
-    z_attrs['multiscales'][0]['name'] = n5_path.split('/')[-1].split('.')[0]
+    z_attrs['multiscales'][0]['name'] = str(n5_path).split('/')[-1].split('.')[0]
     z_attrs['multiscales'][0]['coordinateTransformations'] = [{"type": "scale",
                     "scale": [1.0, 1.0, 1.0, 1.0, 1.0]}]
     
     return z_attrs
 
 def ome_dataset_metadata(n5_src, n5arr):
-    f_arr_attrs_n5 = open(os.path.join(n5_src, n5arr.path, 'attributes.json' ))
-    arr_attrs_n5 = json.load(f_arr_attrs_n5)['transform']
-    f_arr_attrs_n5.close()
-    
+   
+    json_file_path = os.path.join(n5_src, n5arr.path, 'attributes.json' )
+
+    with open(json_file_path, 'r') as j:
+        arr_attrs_n5_init = json.loads(j.read())
+    print(arr_attrs_n5_init)
+    arr_attrs_n5 =  arr_attrs_n5_init['transform']
+ 
     dataset_meta =  {
                     "path": n5arr.path,
                     "coordinateTransformations": [{
@@ -92,9 +79,4 @@ def import_datasets(n5_src, zarr_dest):
     
     # add metadata to .zattrs 
     zg.attrs['multiscales'] = z_attrs['multiscales']
-
-# create input and output directories otside of the project directory
-
-import_datasets(n5_src, zarr_dest)
-
 
