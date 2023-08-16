@@ -18,15 +18,11 @@ def filepaths(tmp_path_factory):
     input = path / 'input/test_file.n5'
     output = path / 'output/test_file_new.zarr'
     populate_n5file(input)
-    print(input)
-    print(output)
-
     return (input, output)
 
 #test file
 def populate_n5file(input):
     store = zarr.N5Store(input)
-    print(input)
     root = zarr.group(store = store, overwrite = True) 
     paths = ['data', 'data1/data1_lvl1/data1_lvl2']
     

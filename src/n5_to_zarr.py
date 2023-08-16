@@ -32,7 +32,6 @@ def ome_dataset_metadata(n5_src, n5arr):
 
     with open(json_file_path, 'r') as j:
         arr_attrs_n5_init = json.loads(j.read())
-    print(arr_attrs_n5_init)
     arr_attrs_n5 =  arr_attrs_n5_init['transform']
  
     dataset_meta =  {
