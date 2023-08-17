@@ -39,10 +39,7 @@ def ome_dataset_metadata(n5_src, n5arr):
     return dataset_meta
 
 def import_datasets(n5src, zarrdest):
-    n5src = n5src.as_posix()
-    print(n5src)
-    zarrdest = zarrdest.as_posix()
-    print(zarrdest)
+    
     store_n5 = zarr.N5Store(n5src)
     n5_root = zarr.open_group(store_n5, mode = 'r')
     zarr_arrays = sorted(n5_root.arrays(recurse=True))
@@ -57,7 +54,6 @@ def import_datasets(n5src, zarrdest):
     for item in zarr_arrays:
         n5arr = item[1]
         darray = da.from_array(n5arr, chunks = n5arr.chunks)
-        print(n5arr.path)
 
         if not (zarr.storage.contains_array(z_store, n5arr.path)):
             dataset = zg.create_dataset(n5arr.path, 
@@ -84,4 +80,4 @@ def cli(n5src, zarrdest):
     import_datasets(n5src, zarrdest)
 
 if __name__ == '__main__':
-    import_datasets()
+    cli()
