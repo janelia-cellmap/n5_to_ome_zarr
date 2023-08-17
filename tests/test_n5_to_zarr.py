@@ -1,11 +1,8 @@
 import pytest
-from pathlib import Path
 import os
 import dask.array as da
-from random import randint
 import numpy as np
 import zarr
-import json
 
 import n5_to_zarr as n5toz 
 
@@ -105,9 +102,7 @@ def test_ome_dataset_metadata(n5_data):
     for item in n5_data[2]:
         n5arr = item[1]
         zarr_meta = n5toz.ome_dataset_metadata(n5_src, n5arr)
-        f_arr_attrs_n5 = open(os.path.join(n5_src, n5arr.path, 'attributes.json' ))
-        arr_attrs_n5 = json.load(f_arr_attrs_n5)['transform']
-        f_arr_attrs_n5.close()
+        arr_attrs_n5 = n5arr.attrs['transform']
 
         assert (n5arr.path == zarr_meta['path'] 
                 and zarr_meta['coordinateTransformations'][0]['scale'] ==  arr_attrs_n5['scale']
@@ -118,8 +113,6 @@ def test_import_datasets(n5_data, filepaths):
     zarr_dest = filepaths[1]
     n5_arrays = n5_data[2]
     n5toz.import_datasets(n5_src, zarr_dest)
-    z_store = zarr.NestedDirectoryStore(zarr_dest)
-    z_root = zarr.open_group(z_store, mode = 'r')
 
     for item in n5_arrays:
         n5arr = item[1]

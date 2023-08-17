@@ -1,10 +1,8 @@
 import zarr 
 import numpy as np
 import os
-import shutil
 import json
 import dask.array as da
-from pathlib import Path
 import click
 
 __version__ = "0.1.0"
@@ -29,12 +27,7 @@ def populate_zattrs(n5_path, n5_root):
 
 def ome_dataset_metadata(n5_src, n5arr):
    
-    json_file_path = os.path.join(n5_src, n5arr.path, 'attributes.json' )
-
-    with open(json_file_path, 'r') as j:
-        arr_attrs_n5_init = json.loads(j.read())
-    arr_attrs_n5 =  arr_attrs_n5_init['transform']
- 
+    arr_attrs_n5 = n5arr.attrs['transform']
     dataset_meta =  {
                     "path": n5arr.path,
                     "coordinateTransformations": [{
@@ -45,10 +38,11 @@ def ome_dataset_metadata(n5_src, n5arr):
     
     return dataset_meta
 
-@click.command()
-@click.option('--n5src', help='Source path to the .n5 file and its name. Example: "../folder1/folder2/file.n5"')
-@click.option('--zarrdest', help='Destination path to the .zarr file and its name. Example: "../folder1/folder2/file.zarr"')
 def import_datasets(n5src, zarrdest):
+    n5src = n5src.as_posix()
+    print(n5src)
+    zarrdest = zarrdest.as_posix()
+    print(zarrdest)
     store_n5 = zarr.N5Store(n5src)
     n5_root = zarr.open_group(store_n5, mode = 'r')
     zarr_arrays = sorted(n5_root.arrays(recurse=True))
@@ -63,6 +57,7 @@ def import_datasets(n5src, zarrdest):
     for item in zarr_arrays:
         n5arr = item[1]
         darray = da.from_array(n5arr, chunks = n5arr.chunks)
+        print(n5arr.path)
 
         if not (zarr.storage.contains_array(z_store, n5arr.path)):
             dataset = zg.create_dataset(n5arr.path, 
@@ -81,6 +76,12 @@ def import_datasets(n5src, zarrdest):
     
     # add metadata to .zattrs 
     zg.attrs['multiscales'] = z_attrs['multiscales']
+
+@click.command()
+@click.argument('n5src', type=click.STRING)
+@click.argument('zarrdest', type=click.STRING)
+def cli(n5src, zarrdest):
+    import_datasets(n5src, zarrdest)
 
 if __name__ == '__main__':
     import_datasets()
