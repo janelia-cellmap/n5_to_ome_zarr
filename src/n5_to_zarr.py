@@ -4,6 +4,8 @@ import json
 import dask.array as da
 import click
 import pydantic_zarr as pz
+from numcodecs import Blosc
+
 
 __version__ = "0.1.0"
 
@@ -57,33 +59,33 @@ def ome_dataset_metadata(n5arr):
     return dataset_meta
 
 # d=groupspec.to_dict(),  
-def normalize_groupspec(d):
+def normalize_groupspec(d, comp):
     for k,v in d.items():
         if k == "compressor":
-            temp = d[k]["compressor_config"]
-            d[k] = temp
-        if k == 'dimension_separator':
+            d[k] = comp.get_config()
+
+        elif k == 'dimension_separator':
             d[k] = '/'
         elif type(v) is dict:
-            normalize_groupspec(v)
+            normalize_groupspec(v, comp)
 
-def copy_n5_store(n5_root, z_store):
+def copy_n5_store(n5_root, z_store, comp):
     spec_n5 = pz.GroupSpec.from_zarr(n5_root)
     spec_n5_dict = spec_n5.dict()
-    normalize_groupspec(spec_n5_dict)
+    normalize_groupspec(spec_n5_dict, comp)
     spec_n5 = pz.GroupSpec(**spec_n5_dict)
     return spec_n5.to_zarr(z_store, path= '')
 
 
 
-def import_datasets(n5src, zarrdest):
+def import_datasets(n5src, zarrdest, comp):
     
     store_n5 = zarr.N5Store(n5src)
     n5_root = zarr.open_group(store_n5, mode = 'r')
     zarr_arrays = sorted(n5_root.arrays(recurse=True))
 
     z_store = zarr.NestedDirectoryStore(zarrdest)
-    zg = copy_n5_store(n5_root, z_store)
+    zg = copy_n5_store(n5_root, z_store, comp)
 
     normalize_to_omengff(zg)
 
@@ -98,8 +100,12 @@ def import_datasets(n5src, zarrdest):
 @click.command()
 @click.argument('n5src', type=click.STRING)
 @click.argument('zarrdest', type=click.STRING)
-def cli(n5src, zarrdest):
-    import_datasets(n5src, zarrdest)
+@click.option('--cname', default = "zstd", type=click.STRING)
+@click.option('--clevel', default = 9, type=click.INT)
+@click.option('--shuffle', default = 0, type=click.INT)
+def cli(n5src, zarrdest, cname, clevel, shuffle):
+    compressor = Blosc(cname=cname, clevel=clevel, shuffle=shuffle)
+    import_datasets(n5src, zarrdest, compressor)
 
 if __name__ == '__main__':
     cli()

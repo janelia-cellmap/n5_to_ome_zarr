@@ -13,6 +13,7 @@ dask = "^2023.8.0"
 zarr = "^2.16.0"
 click = "^8.1.6"
 pydantic-zarr = "^0.4.0"
+numcodecs = "^0.11.0"
 
 
 [tool.poetry.group.dev.dependencies]
