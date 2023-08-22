@@ -38,7 +38,7 @@ def normalize_to_omengff(zgroup):
                 zattrs = apply_ome_template(zgroup[key])
                 zarrays = sorted(zgroup[key].arrays(recurse=True))
 
-                #add datasets metadata in the omengff template
+                #add datasets metadata to the omengff template
                 for arr in zarrays:
                     zattrs['multiscales'][0]['datasets'].append(ome_dataset_metadata(arr[1]))
 

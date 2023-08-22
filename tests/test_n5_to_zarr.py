@@ -3,6 +3,7 @@ import os
 import dask.array as da
 import numpy as np
 import zarr
+from numcodecs import GZip, Blosc
 
 import n5_to_zarr as n5toz 
 
@@ -21,23 +22,17 @@ def filepaths(tmp_path_factory):
 def populate_n5file(input):
     store = zarr.N5Store(input)
     root = zarr.group(store = store, overwrite = True) 
-    paths = ['data', 'data1/data1_lvl1/data1_lvl2']
-    
-    n5_data = zarr.create(store=store, 
-                            path=paths[0], 
-                            shape = (100,100, 100),
-                            chunks=10,
-                            dtype='float32')
-    
-    n5_data1 = zarr.create(store=store, 
-                            path=paths[1], 
-                            shape = (100,100, 100),
-                            chunks=10,
-                            dtype='float32')
-
-    n5_data[:] = 42 * np.random.rand(100,100, 100)
-    n5_data1[:] = 42 * np.random.rand(100,100, 100)
-    datasets = [n5_data, n5_data1]
+    paths = ['render/branch_0/data', 'render/branch_0/data1/data1_lvl1/data1_lvl2',
+             'render/branch_1/data2', 'render/branch_2/data3/data3_lvl1/data3_lvl2']
+    datasets = []
+    for path in paths:
+        n5_data = zarr.create(store=store, 
+                                path=path, 
+                                shape = (100,100, 100),
+                                chunks=10,
+                                dtype='float32', compressor=GZip(level=4))#, compressor = Blosc(cname="zstd", clevel=9, shuffle=0))
+        n5_data[:] = 42 * np.random.rand(100,100, 100)
+        datasets.append(n5_data)
 
     test_metadata_n5 = {"pixelResolution":{"dimensions":[4.0,4.0,4.0],
                         "unit":"nm"},
@@ -48,11 +43,11 @@ def populate_n5file(input):
                         "axes":["z","y","x"],
                         "units":["nm","nm","nm"],
                         "translate":[-2519,-2510,1]}
-    root.attrs.update(test_metadata_n5)
-
-    res_params = [(13.0, 0.0), (15.0, 2.0)]
-    
-   
+    for i in range(3):
+        root[f'render/branch_{i}'].attrs.update(test_metadata_n5)
+        
+    res_params = [(4.0, 2.0), (8.0, 0.0), (16.0, 4.0), (32.0, 8.0)]
+     
     for (data, res_param) in zip(datasets, res_params):
             transform = {
             "axes": [
@@ -77,7 +72,6 @@ def populate_n5file(input):
                 "nm"
             ]}
             data.attrs['transform'] = transform
-    
 @pytest.fixture
 def n5_data(filepaths):
     populate_n5file(filepaths[0])
@@ -86,22 +80,20 @@ def n5_data(filepaths):
     zarr_arrays = sorted(n5_root.arrays(recurse=True))
     return (filepaths[0], n5_root, zarr_arrays)
 
-def test_populate_zattrs(n5_data):
-    n5_root = n5_data[1]
-    n5_path = n5_data[0]
-    zattrs = n5toz.populate_zattrs(n5_path, n5_root)
-    
-    z_axes = [sub['name'] for sub in zattrs['multiscales'][0]['axes']]
-    z_units = [sub['unit'] for sub in zattrs['multiscales'][0]['axes']]
+def test_apply_ome_template(n5_data):
+    n5_group = n5_data[1]
+    if 'scales' in n5_group.attrs.asdict():
+        zattrs = n5toz.apply_ome_template(n5_group)
+        
+        z_axes = [sub['name'] for sub in zattrs['multiscales'][0]['axes']]
+        z_units = [sub['unit'] for sub in zattrs['multiscales'][0]['axes']]
 
-    assert z_axes == n5_root.attrs['axes'] and z_units == n5_root.attrs['units']
+        assert z_axes == n5_group.attrs['axes'] and z_units == n5_group.attrs['units']
 
 def test_ome_dataset_metadata(n5_data):
-    n5_src = n5_data[0]
-
     for item in n5_data[2]:
         n5arr = item[1]
-        zarr_meta = n5toz.ome_dataset_metadata(n5_src, n5arr)
+        zarr_meta = n5toz.ome_dataset_metadata(n5arr)
         arr_attrs_n5 = n5arr.attrs['transform']
 
         assert (n5arr.path == zarr_meta['path'] 
@@ -112,7 +104,7 @@ def test_import_datasets(n5_data, filepaths):
     n5_src = filepaths[0]
     zarr_dest = filepaths[1]
     n5_arrays = n5_data[2]
-    n5toz.import_datasets(n5_src, zarr_dest)
+    n5toz.import_datasets(n5_src, zarr_dest, Blosc(cname="zstd", clevel=9, shuffle=0))
 
     for item in n5_arrays:
         n5arr = item[1]
