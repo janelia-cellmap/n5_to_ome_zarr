@@ -5,7 +5,11 @@ import dask.array as da
 import click
 import pydantic_zarr as pz
 from numcodecs import Blosc
-
+import os
+from dask.distributed import Client
+from dask_jobqueue import LSFCluster
+from dask.distributed import LocalCluster
+import time
 
 __version__ = "0.1.0"
 
@@ -104,8 +108,26 @@ def import_datasets(n5src, zarrdest, comp):
 @click.option('--clevel', default = 9, type=click.INT)
 @click.option('--shuffle', default = 0, type=click.INT)
 def cli(n5src, zarrdest, cname, clevel, shuffle):
+    start_time = time.time()
     compressor = Blosc(cname=cname, clevel=clevel, shuffle=shuffle)
     import_datasets(n5src, zarrdest, compressor)
+    total_time = time.time() - start_time
+    print(f"Total conversion time: {total_time} s")
 
-if __name__ == '__main__':
-    cli()
+if __name__ ==  '__main__':
+
+    num_cores = 10
+    cluster = LSFCluster( cores=num_cores,
+            processes=1,
+            memory=f"{15 * num_cores}GB",
+            ncpus=num_cores,
+            mem=15 * num_cores,
+            walltime="30:00"
+            )
+    cluster.scale(num_cores)
+
+    with Client(cluster) as cl:        
+        cl.compute(cli(), sync=True)
+
+# if __name__ == '__main__':
+#     cli()
