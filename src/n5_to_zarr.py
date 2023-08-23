@@ -122,7 +122,7 @@ if __name__ ==  '__main__':
             memory=f"{15 * num_cores}GB",
             ncpus=num_cores,
             mem=15 * num_cores,
-            walltime="30:00"
+            walltime="00:30"
             )
     cluster.scale(num_cores)
 
