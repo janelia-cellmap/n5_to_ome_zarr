@@ -39,7 +39,7 @@ def apply_ome_template(zgroup):
     z_attrs['multiscales'][0]['version'] = '0.4'
     z_attrs['multiscales'][0]['name'] = zgroup.name
     z_attrs['multiscales'][0]['coordinateTransformations'] = [{"type": "scale",
-                    "scale": [1.0, 1.0, 1.0], "type" : "translation", "translation" : [1.0, 1.0, 1.0]}]
+                    "scale": [1.0, 1.0, 1.0]}, {"type" : "translation", "translation" : [1.0, 1.0, 1.0]}]
     
     return z_attrs
 
@@ -68,7 +68,7 @@ def ome_dataset_metadata(n5arr, group):
                     "path": os.path.relpath(n5arr.path, group.path),
                     "coordinateTransformations": [{
                         'type': 'scale',
-                        'scale': arr_attrs_n5['scale'],
+                        'scale': arr_attrs_n5['scale']},{
                         'type': 'translation',
                         'translation' : arr_attrs_n5['translate']
                     }]}
