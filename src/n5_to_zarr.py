@@ -19,11 +19,23 @@ def apply_ome_template(zgroup):
     z_attrs = json.load(f_zattrs_template)
     f_zattrs_template.close()
 
+    junits = open('src/unit_names.json')
+    unit_names = json.load(junits)
+    junits.close()
+
+    units_list = []
+
+    for unit in zgroup.attrs['units']:
+        if unit in unit_names.keys():
+            units_list.append(unit_names[unit])
+        else:
+            units_list.append(unit)
+
     #populate .zattrs
     z_attrs['multiscales'][0]['axes'] = [{"name": axis, 
                                           "type": "space",
                                            "unit": unit} for (axis, unit) in zip(zgroup.attrs['axes'], 
-                                                                                 zgroup.attrs['units'])]
+                                                                                 units_list)]
     z_attrs['multiscales'][0]['version'] = '0.4'
     z_attrs['multiscales'][0]['name'] = zgroup.name
     z_attrs['multiscales'][0]['coordinateTransformations'] = [{"type": "scale",
@@ -117,7 +129,7 @@ def cli(n5src, zarrdest, cname, clevel, shuffle):
 
 if __name__ ==  '__main__':
 
-    num_cores = 2
+    num_cores = 8
     cluster = LSFCluster( cores=num_cores,
             processes=1,
             memory=f"{15 * num_cores}GB",
