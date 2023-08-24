@@ -1,15 +1,19 @@
 import zarr 
 import os
 import json
-import dask.array as da
 import click
 import pydantic_zarr as pz
 from numcodecs import Blosc
 import os
+import time
+from operator import itemgetter
+import natsort
+
+import dask.array as da
 from dask.distributed import Client
 from dask_jobqueue import LSFCluster
 from dask.distributed import LocalCluster
-import time
+
 
 __version__ = "0.1.0"
 
@@ -52,12 +56,15 @@ def normalize_to_omengff(zgroup):
             normalize_to_omengff(zgroup[key])
             if 'scales' in zgroup[key].attrs.asdict():
                 zattrs = apply_ome_template(zgroup[key])
-                zarrays = sorted(zgroup[key].arrays(recurse=True))
+                zarrays = zgroup[key].arrays(recurse=True)
 
-                #add datasets metadata to the omengff template
+                unsorted_datasets = []
                 for arr in zarrays:
-                    zattrs['multiscales'][0]['datasets'].append(ome_dataset_metadata(arr[1], zgroup[key]))
+                    unsorted_datasets.append(ome_dataset_metadata(arr[1], zgroup[key]))
 
+                #1.apply natural sort to organize datasets metadata array for different resolution degrees (s0 -> s10)
+                #2.add datasets metadata to the omengff template
+                zattrs['multiscales'][0]['datasets'] = natsort.natsorted(unsorted_datasets, key=itemgetter(*['path']))
                 zgroup[key].attrs['multiscales'] = zattrs['multiscales']
 
 
@@ -99,7 +106,7 @@ def import_datasets(n5src, zarrdest, comp):
     
     store_n5 = zarr.N5Store(n5src)
     n5_root = zarr.open_group(store_n5, mode = 'r')
-    zarr_arrays = sorted(n5_root.arrays(recurse=True))
+    zarr_arrays = (n5_root.arrays(recurse=True))
 
     z_store = zarr.NestedDirectoryStore(zarrdest)
     zg = copy_n5_store(n5_root, z_store, comp)
@@ -137,7 +144,6 @@ if __name__ ==  '__main__':
             mem=15 * num_cores,
             walltime="01:00"
             )
-    #cluster = LocalCluster()
     cluster.scale(num_cores)
 
     with Client(cluster) as cl:        
