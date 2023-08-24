@@ -116,14 +116,15 @@ def cli(n5src, zarrdest, cname, clevel, shuffle):
 
 if __name__ ==  '__main__':
 
-    num_cores = 10
+    num_cores = 20
     cluster = LSFCluster( cores=num_cores,
             processes=1,
             memory=f"{15 * num_cores}GB",
             ncpus=num_cores,
             mem=15 * num_cores,
-            walltime="00:30"
+            walltime="01:00"
             )
+    #cluster = LocalCluster()
     cluster.scale(num_cores)
 
     with Client(cluster) as cl:        
