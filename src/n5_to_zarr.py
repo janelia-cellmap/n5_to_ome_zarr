@@ -24,10 +24,10 @@ def apply_ome_template(zgroup):
                                           "type": "space",
                                            "unit": unit} for (axis, unit) in zip(zgroup.attrs['axes'], 
                                                                                  zgroup.attrs['units'])]
-    z_attrs['multiscales'][0]['version'] = '1.0'
+    z_attrs['multiscales'][0]['version'] = '0.4'
     z_attrs['multiscales'][0]['name'] = zgroup.name
     z_attrs['multiscales'][0]['coordinateTransformations'] = [{"type": "scale",
-                    "scale": [1.0, 1.0, 1.0, 1.0, 1.0]}]
+                    "scale": [1.0, 1.0, 1.0], "type" : "translation", "translation" : [1.0, 1.0, 1.0]}]
     
     return z_attrs
 
@@ -44,19 +44,20 @@ def normalize_to_omengff(zgroup):
 
                 #add datasets metadata to the omengff template
                 for arr in zarrays:
-                    zattrs['multiscales'][0]['datasets'].append(ome_dataset_metadata(arr[1]))
+                    zattrs['multiscales'][0]['datasets'].append(ome_dataset_metadata(arr[1], zgroup[key]))
 
                 zgroup[key].attrs['multiscales'] = zattrs['multiscales']
 
 
-def ome_dataset_metadata(n5arr):
+def ome_dataset_metadata(n5arr, group):
    
     arr_attrs_n5 = n5arr.attrs['transform']
     dataset_meta =  {
-                    "path": n5arr.path,
+                    "path": os.path.relpath(n5arr.path, group.path),
                     "coordinateTransformations": [{
                         'type': 'scale',
                         'scale': arr_attrs_n5['scale'],
+                        'type': 'translation',
                         'translation' : arr_attrs_n5['translate']
                     }]}
     
@@ -116,7 +117,7 @@ def cli(n5src, zarrdest, cname, clevel, shuffle):
 
 if __name__ ==  '__main__':
 
-    num_cores = 20
+    num_cores = 2
     cluster = LSFCluster( cores=num_cores,
             processes=1,
             memory=f"{15 * num_cores}GB",
