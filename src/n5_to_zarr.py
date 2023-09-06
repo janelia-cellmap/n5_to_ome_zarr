@@ -5,7 +5,6 @@ import click
 import pydantic_zarr as pz
 from numcodecs import Blosc
 import os
-import time
 from operator import itemgetter
 import natsort
 
@@ -16,6 +15,17 @@ from dask.distributed import LocalCluster
 
 
 __version__ = "0.1.0"
+
+#creates attributes.json, if missing 
+def reconstruct_json(n5src):
+    dir_list = os.listdir(n5src)
+    if "attributes.json" not in dir_list:
+        with open(os.path.join(n5src,"attributes.json"), "w") as jfile:
+            dict = {"n5": "2.0.0"}
+            jfile.write(json.dumps(dict, indent=4))
+    for obj in dir_list:
+        if os.path.isdir(os.path.join(n5src, obj)):
+            reconstruct_json(os.path.join(n5src, obj))
 
 def apply_ome_template(zgroup):
     
@@ -51,7 +61,7 @@ def normalize_to_omengff(zgroup):
     group_keys = zgroup.keys()
 
     for key in group_keys:
-        if type(zgroup[key]) == zarr.hierarchy.Group:
+        if isinstance(zgroup[key], zarr.hierarchy.Group):
 
             normalize_to_omengff(zgroup[key])
             if 'scales' in zgroup[key].attrs.asdict():
@@ -69,6 +79,9 @@ def normalize_to_omengff(zgroup):
 
 
 def ome_dataset_metadata(n5arr, group):
+    text_file = open(os.path.join(os.getcwd(), "..", "attrs", "_".join(str(n5arr.name).split("/")) + ".txt"), "w")
+    text_file.write(str(sorted(n5arr.attrs)))
+    text_file.close()
    
     arr_attrs_n5 = n5arr.attrs['transform']
     dataset_meta =  {
@@ -90,10 +103,10 @@ def normalize_groupspec(d, comp):
 
         elif k == 'dimension_separator':
             d[k] = '/'
-        elif type(v) is dict:
+        elif isinstance(v,  dict):
             normalize_groupspec(v, comp)
 
-def copy_n5_store(n5_root, z_store, comp):
+def copy_n5_tree(n5_root, z_store, comp):
     spec_n5 = pz.GroupSpec.from_zarr(n5_root)
     spec_n5_dict = spec_n5.dict()
     normalize_groupspec(spec_n5_dict, comp)
@@ -102,14 +115,16 @@ def copy_n5_store(n5_root, z_store, comp):
 
 
 
-def import_datasets(n5src, zarrdest, comp):
-    
+def import_datasets(n5src, zarrdest, comp, repair_n5_attrs):
+
+    if repair_n5_attrs:
+            reconstruct_json(n5src)
     store_n5 = zarr.N5Store(n5src)
     n5_root = zarr.open_group(store_n5, mode = 'r')
     zarr_arrays = (n5_root.arrays(recurse=True))
 
     z_store = zarr.NestedDirectoryStore(zarrdest)
-    zg = copy_n5_store(n5_root, z_store, comp)
+    zg = copy_n5_tree(n5_root, z_store, comp)
 
     normalize_to_omengff(zg)
 
@@ -124,30 +139,29 @@ def import_datasets(n5src, zarrdest, comp):
 @click.command()
 @click.argument('n5src', type=click.STRING)
 @click.argument('zarrdest', type=click.STRING)
+@click.argument('scheduler', type=click.STRING)
+@click.option('--repair_n5_attrs', default= False, type=click.BOOL)
 @click.option('--cname', default = "zstd", type=click.STRING)
 @click.option('--clevel', default = 9, type=click.INT)
 @click.option('--shuffle', default = 0, type=click.INT)
-def cli(n5src, zarrdest, cname, clevel, shuffle):
-    start_time = time.time()
+def cli(n5src, zarrdest, cname, clevel, shuffle, scheduler, repair_n5_attrs):
     compressor = Blosc(cname=cname, clevel=clevel, shuffle=shuffle)
-    import_datasets(n5src, zarrdest, compressor)
-    total_time = time.time() - start_time
-    print(f"Total conversion time: {total_time} s")
 
-if __name__ ==  '__main__':
-
-    num_cores = 8
-    cluster = LSFCluster( cores=num_cores,
-            processes=1,
-            memory=f"{15 * num_cores}GB",
-            ncpus=num_cores,
-            mem=15 * num_cores,
-            walltime="01:00"
-            )
-    cluster.scale(num_cores)
+    if scheduler == "lsf":
+        num_cores = 8
+        cluster = LSFCluster( cores=num_cores,
+                processes=1,
+                memory=f"{15 * num_cores}GB",
+                ncpus=num_cores,
+                mem=15 * num_cores,
+                walltime="01:00"
+                )
+        cluster.scale(num_cores)
+    elif scheduler == "local":
+        cluster = LocalCluster()
 
     with Client(cluster) as cl:        
-        cl.compute(cli(), sync=True)
+        cl.compute(import_datasets(n5src, zarrdest, compressor, repair_n5_attrs), sync=True)
 
-# if __name__ == '__main__':
-#     cli()
+if __name__ == '__main__':
+    cli()
