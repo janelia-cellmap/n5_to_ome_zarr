@@ -140,28 +140,32 @@ def import_datasets(n5src, zarrdest, comp, repair_n5_attrs):
 @click.command()
 @click.argument('n5src', type=click.STRING)
 @click.argument('zarrdest', type=click.STRING)
-@click.argument('scheduler', type=click.STRING)
+@click.argument('cluster', type=click.STRING)
+@click.option('--num_workers', '-w', default = 100, type=click.INT)
 @click.option('--repair_n5_attrs', default= False, type=click.BOOL)
 @click.option('--cname', default = "zstd", type=click.STRING)
 @click.option('--clevel', default = 9, type=click.INT)
 @click.option('--shuffle', default = 0, type=click.INT)
-def cli(n5src, zarrdest, cname, clevel, shuffle, scheduler, repair_n5_attrs):
+def cli(n5src, zarrdest, cname, clevel, shuffle, cluster, num_workers, repair_n5_attrs):
     compressor = Blosc(cname=cname, clevel=clevel, shuffle=shuffle)
 
-    if scheduler == "lsf":
-        num_cores = 8
-        cluster = LSFCluster( cores=num_cores,
+    if cluster == "lsf":
+        num_cores = 1
+        cluster_dask = LSFCluster(
+                cores=num_cores,
                 processes=1,
                 memory=f"{15 * num_cores}GB",
                 ncpus=num_cores,
                 mem=15 * num_cores,
-                walltime="01:00"
+                walltime="48:00",
+                death_timeout = 240.0,
+                local_directory = "/scratch/zubovy/"
                 )
-        cluster.scale(num_cores)
-    elif scheduler == "local":
-        cluster = LocalCluster()
+        cluster_dask.scale(num_workers)
+    elif cluster == "local":
+        cluster_dask = LocalCluster()
 
-    with Client(cluster) as cl:        
+    with Client(cluster_dask) as cl:
         cl.compute(import_datasets(n5src, zarrdest, compressor, repair_n5_attrs), sync=True)
 
 if __name__ == '__main__':
