@@ -69,7 +69,11 @@ def normalize_to_omengff(zgroup):
 
 
 def ome_dataset_metadata(n5arr, group):
-   
+    
+    text_file = open(os.path.join(os.getcwd(), "..", "attrs", "_".join(str(n5arr.name).split("/")) + ".txt"), "w")
+    text_file.write(str(sorted(n5arr.attrs)))
+    text_file.close()
+    
     arr_attrs_n5 = n5arr.attrs['transform']
     dataset_meta =  {
                     "path": os.path.relpath(n5arr.path, group.path),
@@ -136,7 +140,7 @@ def cli(n5src, zarrdest, cname, clevel, shuffle):
 
 if __name__ ==  '__main__':
 
-    num_cores = 8
+    num_cores = 20
     cluster = LSFCluster( cores=num_cores,
             processes=1,
             memory=f"{15 * num_cores}GB",

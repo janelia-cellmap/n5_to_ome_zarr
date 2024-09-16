@@ -16,6 +16,7 @@ pydantic-zarr = "^0.4.0"
 numcodecs = "^0.11.0"
 dask-jobqueue = "^0.8.2"
 natsort = "^8.4.0"
+bokeh = "^3.3.2"
 
 
 [tool.poetry.group.dev.dependencies]
