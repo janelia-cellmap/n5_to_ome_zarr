@@ -140,7 +140,7 @@ def import_datasets(n5src, zarrdest, comp, repair_n5_attrs):
 @click.command()
 @click.argument('n5src', type=click.STRING)
 @click.argument('zarrdest', type=click.STRING)
-@click.argument('cluster', type=click.STRING)
+@click.option('--cluster', '-c', default = "lsf", type=click.STRING)
 @click.option('--num_workers', '-w', default = 100, type=click.INT)
 @click.option('--repair_n5_attrs', default= False, type=click.BOOL)
 @click.option('--cname', default = "zstd", type=click.STRING)
