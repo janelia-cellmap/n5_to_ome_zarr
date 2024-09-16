@@ -80,10 +80,6 @@ def normalize_to_omengff(zgroup):
 
 def ome_dataset_metadata(n5arr, group):
     
-    text_file = open(os.path.join(os.getcwd(), "..", "attrs", "_".join(str(n5arr.name).split("/")) + ".txt"), "w")
-    text_file.write(str(sorted(n5arr.attrs)))
-    text_file.close()
-
     arr_attrs_n5 = n5arr.attrs['transform']
     dataset_meta =  {
                     "path": os.path.relpath(n5arr.path, group.path),
@@ -166,6 +162,9 @@ def cli(n5src, zarrdest, cname, clevel, shuffle, cluster, num_workers, repair_n5
         cluster_dask = LocalCluster()
 
     with Client(cluster_dask) as cl:
+        text_file = open(os.path.join(os.getcwd(), "dask_dashboard_link" + ".txt"), "w")
+        text_file.write(str(cl.dashboard_link))
+        text_file.close()
         cl.compute(import_datasets(n5src, zarrdest, compressor, repair_n5_attrs), sync=True)
 
 if __name__ == '__main__':
