@@ -6,6 +6,7 @@ import pydantic_zarr as pz
 from numcodecs import Blosc
 import os
 from operator import itemgetter
+from itertools import chain
 import natsort
 
 import dask.array as da
@@ -59,11 +60,11 @@ def apply_ome_template(zgroup):
 
 def normalize_to_omengff(zgroup):
     group_keys = zgroup.keys()
-
-    for key in group_keys:
+    
+    for key in chain(group_keys, '/'):
         if isinstance(zgroup[key], zarr.hierarchy.Group):
-
-            normalize_to_omengff(zgroup[key])
+            if key!='/':
+                normalize_to_omengff(zgroup[key])
             if 'scales' in zgroup[key].attrs.asdict():
                 zattrs = apply_ome_template(zgroup[key])
                 zarrays = zgroup[key].arrays(recurse=True)
