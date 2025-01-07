@@ -156,7 +156,7 @@ def cli(n5src, zarrdest, cname, clevel, shuffle, cluster, num_workers, repair_n5
                 mem=15 * num_cores,
                 walltime="48:00",
                 death_timeout = 240.0,
-                local_directory = "/scratch/zubovy/"
+                local_directory = "/scratch/$USER/"
                 )
         cluster_dask.scale(num_workers)
     elif cluster == "local":
